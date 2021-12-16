@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import itertools
+import collections 
 import scipy.signal
 
 def input_filename(num, is_test):
@@ -657,3 +658,61 @@ def puzzle_13_2(test):
     pm[m > 0] = '#'
     print('\n'.join(' '.join(r) for r in iter(np.flip(np.flip(pm, 1), 0))))
 
+
+def read_input_14(file):
+    with open(file) as f:
+        pattern = f.readline().strip()
+        f.readline()
+        convertions = [
+            [x.strip() for x in l.split('->')]
+            for l in f
+        ]
+        return pattern, convertions
+
+def puzzle_14_1(test, steps=10):
+    pattern, convertions = read_input_14(input_filename(14, test))
+    convertions = dict(convertions)
+    n_pattern = ""
+    for s in range(steps):
+        i = 0
+        for i in range(len(pattern)):
+            n = pattern[i:i+2]
+            if n in convertions:
+                n_pattern += n[0] + convertions[n]
+            else:
+                n_pattern += n[0]
+        pattern = n_pattern
+        n_pattern = ""
+    cc = sorted([len(list(v)) for k, v in itertools.groupby(sorted(pattern))])
+    return cc[-1] - cc[0]
+
+def puzzle_14_2(test, steps=40):
+    pattern, convertions = read_input_14(input_filename(14, test))
+    letters = list(set([l for a, b in convertions for l in list(a) + [b]]))
+    letters_to_index = dict((k, i) for i, k in enumerate(letters))
+    convertions_d = dict(convertions)
+    convertions_to_index = dict((k, i) for i, (k, v) in enumerate(convertions))
+
+    m = np.zeros((len(letters), len(convertions), steps+1))
+    for si in range(steps+1):
+        for ci in range(len(convertions)):
+            if si == 0:
+                m[letters_to_index[convertions[ci][0][0]], ci, 0] += 1
+            else:
+                c, r = convertions[ci]
+                left = ''.join([c[0], r])
+                right = ''.join([r, c[1]])
+                if left in convertions_d:
+                    m[:, ci, si] += m[:, convertions_to_index[left], si-1]
+                if right in convertions_d:
+                    m[:, ci, si] += m[:, convertions_to_index[right], si-1]
+
+
+    r = np.zeros((len(letters),))
+    for i in range(len(pattern)):
+        if pattern[i:i+2] in convertions_d:
+            r += m[:, convertions_to_index[pattern[i:i+2]], steps]
+        else:
+            r[letters_to_index[pattern[i]]] += 1
+    s = sorted(r)
+    return s[-1] - s[0]
